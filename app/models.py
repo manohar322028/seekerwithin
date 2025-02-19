@@ -20,10 +20,18 @@ def travel_story_image_path(instance, filename):
     return f'travel_stories/{instance.title}/images/{filename}'
 
 class User(AbstractUser):
+    ROLE_CHOICES = [
+        ('superadmin', 'Superadmin'),
+        ('content_admin', 'Content Admin'),
+        ('normal_user', 'Normal User'),
+        ('tourist_guide', 'Tourist Guide'),
+    ]
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='normal_user')
     profile_image = models.ImageField(upload_to=user_image_path, null=True, blank=True)
     cover_image = models.ImageField(upload_to=user_image_path, null=True, blank=True)
     bio = models.TextField(blank=True)
     joined_date = models.DateTimeField(auto_now_add=True)
+    is_verified = models.BooleanField(default=False)  # For tourist guides
 
     def __str__(self):
         return self.username
@@ -40,6 +48,7 @@ class Place(models.Model):
     opening_time = models.TimeField()
     closing_time = models.TimeField()
     admin = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='administered_places')
+    owner = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='owned_places')  # Owner after verification
     is_verified = models.BooleanField(default=False)
 
     def __str__(self):
@@ -71,10 +80,11 @@ class TouristGuide(models.Model):
     languages = models.CharField(max_length=255)
     contact_info = models.TextField()
     about = models.TextField()
+    is_verified = models.BooleanField(default=False)  # Verification status for guides
 
     def __str__(self):
         return f"Guide: {self.user.username}"
-
+    
 class TravelPackage(models.Model):
     guide = models.ForeignKey(TouristGuide, on_delete=models.CASCADE, related_name='packages')
     title = models.CharField(max_length=255)
@@ -170,9 +180,14 @@ class Notification(models.Model):
         return f"Notification for {self.user.username}: {self.content[:50]}..."
 
 class OwnershipClaim(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     place = models.ForeignKey(Place, on_delete=models.CASCADE)
-    status = models.CharField(max_length=50)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     submitted_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
